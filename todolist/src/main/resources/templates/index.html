@@ -24,6 +24,18 @@
         <div id="task-list" class="mt-6 grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 block mx-auto">
             <!-- Dynamic tasks will appear here -->
         </div>
+
+        <!-- Modal -->
+        <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+            <div class="bg-white rounded-lg shadow-lg w-96 p-6">
+                <h2 class="text-lg font-bold mb-4">Edit Task</h2>
+                <input type="text" id="edit-task-input" class="w-full p-2 mb-4 border border-gray-300 rounded" placeholder="Edit task title">
+                <div class="flex justify-end gap-4">
+                    <button id="edit-cancel-btn" class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400">Cancel</button>
+                    <button id="edit-save-btn" class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Save</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -35,12 +47,24 @@
         const addTaskBtn = document.getElementById("add-task-btn");
         const taskList = document.getElementById("task-list");
 
+
+        //Get refrences to modal elements
+        const editModal = document.getElementById("edit-modal");
+        const editTaskInput = document.getElementById("edit-task-input");
+        const editCancelBtn = document.getElementById("edit-cancel-btn");
+        const editSaveBtn = document.getElementById("edit-save-btn");
+
+        let currentEditId = null;
+        let currentTaskDiv = null;
+
         // Fetch tasks from the backend and display them
         async function fetchTasks() {
             const response = await fetch(apiUrl);
             const tasks = await response.json();
+            const reversedTask = tasks.reverse();
+
             taskList.innerHTML = ''; // Clear existing tasks
-            tasks.forEach(task => {
+            reversedTask.forEach(task => {
                 displayTask(task);
             });
         }
@@ -55,7 +79,14 @@
                     <div>
                         <p class="text-sm"><b>Date: <span>${new Date().toLocaleDateString()}</span></b></p>
                     </div>
-                    <div class="text-end">
+                    <div class="flex gap-4 justify-end">
+                        <!-- Edit Button -->
+                        <div class="bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 cursor-pointer inline-flex items-center justify-center edit-task" data-id="${task.id}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5h2m-1 1v14m-6-7h12" />
+                            </svg>
+                        </div>
+                        <!-- Delete Button -->
                         <div class="bg-red-500 text-white p-2 rounded-full hover:bg-red-600 cursor-pointer inline-flex items-center justify-center delete-task" data-id="${task.id}">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7L5 7m14 0l-2 12a2 2 0 01-2 2H9a2 2 0 01-2-2L5 7m14 0H5m6-4v4m-2 0v-4m4 0v4m0-4H9" />
@@ -72,9 +103,53 @@
                 deleteTask(task.id);
             });
 
+            //Edit Functionality
+            const editBtn = taskDiv.querySelector(".edit-task");
+            editBtn.addEventListener("click", function() {
+                editTask(task.id, taskDiv);
+            });
             // Append the task to the task list
             taskList.appendChild(taskDiv);
         }
+
+       // Edit Task Functionality
+       async function editTask(id, taskDiv) {
+            currentEditId = id; 
+            currentTaskDiv = taskDiv; 
+
+            // Get the current task title and populate the input
+            const currentTitle = taskDiv.querySelector(".font-normal").textContent;
+            editTaskInput.value = currentTitle;
+
+            // Show the modal
+            editModal.classList.remove("hidden");
+        }
+
+        // Save the edited task
+        editSaveBtn.addEventListener("click", async () => {
+            const newTitle = editTaskInput.value.trim();
+
+            if (newTitle) {
+                const response = await fetch(`${apiUrl}/${currentEditId}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ title: newTitle, completed: false })
+                });
+
+                if (response.ok) {
+                    // Update the task title in the UI
+                    currentTaskDiv.querySelector(".font-normal").textContent = newTitle;
+
+                    // Close the modal
+                    editModal.classList.add("hidden");
+                }
+            }
+        });
+
+        // Cancel the edit operation
+        editCancelBtn.addEventListener("click", () => {
+            editModal.classList.add("hidden");
+        });
 
         // Add a new task
         addTaskBtn.addEventListener("click", async function() {
@@ -96,6 +171,7 @@
             await fetch(`${apiUrl}/${id}`, { method: 'DELETE' });
             fetchTasks(); // Refresh the task list
         }
+
 
         // Initial fetch of tasks when the page loads
         fetchTasks();
