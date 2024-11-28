@@ -1,0 +1,33 @@
+name: Jekyll site CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build_and_deploy:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the repository code
+    - uses: actions/checkout@v4
+
+    # Step 2: Build the site using Jekyll inside a Docker container
+    - name: Build the site in the jekyll/builder container
+      run: |
+        docker run \
+        -v ${{ github.workspace }}:/srv/jekyll -v ${{ github.workspace }}/_site:/srv/jekyll/_site \
+        jekyll/builder:latest /bin/bash -c "chmod -R 777 /srv/jekyll && jekyll build --future"
+
+    # Step 3: Deploy to GitHub Pages (or any other service)
+    - name: Deploy to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
+      with:
+        branch: gh-pages  # The branch where the built site will be deployed
+        folder: _site     # The folder containing the built site (_site is the default output directory for Jekyll)
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    # Optionally, you can also deploy to other platforms (e.g., AWS S3, Netlify, etc.)
