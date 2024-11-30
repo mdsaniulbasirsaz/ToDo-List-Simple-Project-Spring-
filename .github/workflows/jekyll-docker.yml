@@ -1,33 +1,30 @@
-name: Jekyll site CI
+# Stage 1: Build the application
+FROM maven:3.8.5-openjdk-17 AS build
 
-on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
+# Set the working directory
+WORKDIR /app
 
-jobs:
-  build_and_deploy:
+# Copy the pom.xml and download dependencies
+COPY pom.xml .
+RUN mvn clean install -DskipTests
 
-    runs-on: ubuntu-latest
+# Copy the source code
+COPY src /app/src
 
-    steps:
-    # Step 1: Checkout the repository code
-    - uses: actions/checkout@v4
+# Build the project
+RUN mvn clean package -DskipTests
 
-    # Step 2: Build the site using Jekyll inside a Docker container
-    - name: Build the site in the jekyll/builder container
-      run: |
-        docker run \
-        -v ${{ github.workspace }}:/srv/jekyll -v ${{ github.workspace }}/_site:/srv/jekyll/_site \
-        jekyll/builder:latest /bin/bash -c "chmod -R 777 /srv/jekyll && jekyll build --future"
+# Stage 2: Run the application
+FROM openjdk:17-jdk-slim
 
-    # Step 3: Deploy to GitHub Pages (or any other service)
-    - name: Deploy to GitHub Pages
-      uses: JamesIves/github-pages-deploy-action@v4
-      with:
-        branch: gh-pages  # The branch where the built site will be deployed
-        folder: _site     # The folder containing the built site (_site is the default output directory for Jekyll)
-        token: ${{ secrets.GITHUB_TOKEN }}
+# Set the working directory
+WORKDIR /app
 
-    # Optionally, you can also deploy to other platforms (e.g., AWS S3, Netlify, etc.)
+# Copy the JAR file from the build stage
+COPY --from=build /app/target/todolist-app-0.0.1-SNAPSHOT.jar /app/todolist-app.jar
+
+# Expose the port the app will run on
+EXPOSE 8080
+
+# Run the Spring Boot application
+ENTRYPOINT ["java", "-jar", "/app/todolist-app.jar"]
