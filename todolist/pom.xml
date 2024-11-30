@@ -61,6 +61,7 @@
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
 		</plugins>
+		<finalName>todolist-app</finalName>
 	</build>
 
 </project>
